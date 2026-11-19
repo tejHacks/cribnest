@@ -1,18 +1,13 @@
 import * as Haptics from 'expo-haptics';
 import { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 
-import { Body, Button, Card, Label, Screen } from '@/components/ui';
-import { uid, useStoredState } from '@/lib/storage';
-import { usePalette } from '@/theme';
+import { Ring } from '@/components/ring';
+import { Body, Button, Card, ListItem, Screen, SectionTitle, Small, Icon } from '@/components/ui';
+import { uid, useKicks } from '@/data/store';
+import { space, usePalette } from '@/theme';
 
 const GOAL = 10;
-
-interface KickSession {
-  id: string;
-  startedAt: number;
-  minutes: number;
-}
 
 /** Tap for each movement; most babies reach 10 within 2 hours. */
 export default function Kicks() {
@@ -20,7 +15,8 @@ export default function Kicks() {
   const [startedAt, setStartedAt] = useState<number | null>(null);
   const [count, setCount] = useState(0);
   const [now, setNow] = useState(0);
-  const [history, setHistory] = useStoredState<KickSession[]>('kick-sessions', []);
+  const [finished, setFinished] = useState<number | null>(null);
+  const [history, setHistory] = useKicks();
 
   useEffect(() => {
     if (!startedAt) return;
@@ -37,43 +33,68 @@ export default function Kicks() {
       setStartedAt(t);
       setNow(t);
       setCount(1);
+      setFinished(null);
       return;
     }
     const next = count + 1;
     setCount(next);
     if (next >= GOAL) {
-      setHistory((h) => [{ id: uid(), startedAt, minutes: Math.max(1, Math.round((Date.now() - startedAt) / 60000)) }, ...h].slice(0, 30));
+      const mins = Math.max(1, Math.round((Date.now() - startedAt) / 60000));
+      setHistory((h) => [{ id: uid(), startedAt, minutes: mins }, ...h].slice(0, 30));
       setStartedAt(null);
+      setFinished(mins);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     }
   };
 
   return (
     <Screen>
-      <Pressable onPress={tap} accessibilityRole="button" accessibilityLabel="Record a movement" style={[styles.big, { backgroundColor: c.primary }]}>
-        <Text style={styles.count}>{startedAt ? count : count >= GOAL ? '✓' : 0}</Text>
-        <Text style={styles.sub}>{startedAt ? `of ${GOAL} · ${minutes} min` : count >= GOAL ? 'Done — well done!' : 'Tap for each movement'}</Text>
-      </Pressable>
+      <View style={{ alignItems: 'center', paddingVertical: space.md }}>
+        <Pressable onPress={tap} accessibilityRole="button" accessibilityLabel="Record a movement" style={({ pressed }) => ({ transform: [{ scale: pressed ? 0.97 : 1 }] })}>
+          <Ring progress={startedAt ? count / GOAL : finished ? 1 : 0} size={250} stroke={16} color={finished ? c.sage : c.primary} track={c.primarySoft}>
+            <View style={{ width: 196, height: 196, borderRadius: 98, backgroundColor: finished ? c.sageSoft : c.primarySoft, alignItems: 'center', justifyContent: 'center' }}>
+              {finished ? (
+                <Icon name="checkmark" size={64} color={c.success} />
+              ) : (
+                <Text style={{ color: c.text, fontSize: 72, fontWeight: '800' }}>{startedAt ? count : 0}</Text>
+              )}
+              <Text style={{ color: c.muted, fontWeight: '600' }}>{finished ? `${GOAL} in ${finished} min` : startedAt ? `of ${GOAL} · ${minutes} min` : 'Tap for each movement'}</Text>
+            </View>
+          </Ring>
+        </Pressable>
+      </View>
 
-      {startedAt ? <Button title="Cancel" variant="secondary" onPress={() => { setStartedAt(null); setCount(0); }} /> : null}
+      {startedAt ? (
+        <Button
+          title="Cancel this count"
+          variant="secondary"
+          onPress={() => {
+            setStartedAt(null);
+            setCount(0);
+          }}
+        />
+      ) : null}
 
-      <Body muted>Count when your baby is usually active. If you don&apos;t feel {GOAL} movements in 2 hours, or movements feel weaker than usual, contact your health facility.</Body>
+      <Card>
+        <Body muted>
+          Count when your baby is usually active, lying on your left side. If you don&apos;t feel {GOAL} movements in 2 hours, or movements feel weaker than usual, contact your health facility today.
+        </Body>
+      </Card>
 
       {history.length ? (
-        <Card>
-          <Label>Recent sessions</Label>
+        <>
+          <SectionTitle>Recent counts</SectionTitle>
           {history.slice(0, 7).map((s) => (
-            <Body key={s.id}>
-              {new Date(s.startedAt).toLocaleDateString()} — {GOAL} movements in {s.minutes} min
-            </Body>
+            <ListItem
+              key={s.id}
+              title={`${GOAL} movements in ${s.minutes} min`}
+              subtitle={new Date(s.startedAt).toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+              leading={<Icon name="pulse-outline" size={22} color={s.minutes > 120 ? c.danger : c.sage} />}
+            />
           ))}
-        </Card>
+          <Small>Longer than 2 hours is shown in orange.</Small>
+        </>
       ) : null}
     </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  big: { height: 260, borderRadius: 130, alignItems: 'center', justifyContent: 'center', marginHorizontal: 24 },
-  count: { color: '#fff', fontSize: 80, fontWeight: '800' },
-  sub: { color: '#FCE7F3', fontSize: 16, fontWeight: '600' },
-});

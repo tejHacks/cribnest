@@ -1,10 +1,9 @@
-import { DarkTheme, DefaultTheme, ThemeProvider, Stack } from 'expo-router';
+import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { useColorScheme } from 'react-native';
 
-import { brand } from '@/brand';
 import { usePalette } from '@/theme';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -12,11 +11,9 @@ SplashScreen.preventAutoHideAsync().catch(() => {});
 export default function RootLayout() {
   const scheme = useColorScheme();
   const c = usePalette();
-
   useEffect(() => {
     SplashScreen.hideAsync().catch(() => {});
   }, []);
-
   const base = scheme === 'dark' ? DarkTheme : DefaultTheme;
   return (
     <ThemeProvider value={{ ...base, colors: { ...base.colors, primary: c.primary, background: c.bg, card: c.bg, text: c.text, border: c.border } }}>
@@ -27,11 +24,15 @@ export default function RootLayout() {
           headerStyle: { backgroundColor: c.bg },
           headerTintColor: c.text,
           headerTitleStyle: { fontWeight: '700' },
+          headerBackButtonDisplayMode: 'minimal',
           contentStyle: { backgroundColor: c.bg },
         }}>
-        {brand.screens.map((s) => (
-          <Stack.Screen key={s.name} name={s.name} options={{ title: s.title, headerShown: !s.hideHeader, presentation: s.modal ? 'modal' : undefined }} />
-        ))}
+        <Stack.Screen name="index" options={{ headerShown: false }} />
+        <Stack.Screen name="onboarding" options={{ headerShown: false, gestureEnabled: false }} />
+        <Stack.Screen name="setup" options={{ title: '' }} />
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="kicks" options={{ title: 'Kick counter' }} />
+        <Stack.Screen name="appointment" options={{ title: 'New appointment', presentation: 'modal' }} />
       </Stack>
     </ThemeProvider>
   );
