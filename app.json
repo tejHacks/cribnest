@@ -9,7 +9,7 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "bundleIdentifier": "com.olateju.cribnest",
-      "supportsTablet": true,
+      "supportsTablet": false,
       "infoPlist": {}
     },
     "android": {
